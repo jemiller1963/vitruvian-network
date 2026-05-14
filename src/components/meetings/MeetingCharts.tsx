@@ -9,6 +9,18 @@ interface MeetingChartsProps {
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+const tooltipStyle = {
+  background: '#1f2937',
+  border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: '8px',
+  color: '#f9fafb',
+  fontSize: '13px',
+  fontWeight: 600,
+  boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+}
+
+const labelStyle = { color: '#d1d5db', fontWeight: 700, fontSize: '13px' }
+
 export function MeetingCharts({ meetings }: MeetingChartsProps) {
   const typeDistribution = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -52,16 +64,13 @@ export function MeetingCharts({ meetings }: MeetingChartsProps) {
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{
-                background: '#111827',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '8px',
-                color: '#f9fafb',
-                fontSize: '13px',
-              }}
+              contentStyle={tooltipStyle}
+              labelStyle={labelStyle}
+              itemStyle={{ color: '#f9fafb', fontWeight: 600 }}
+              formatter={(value: number, name: string) => [`${value} meeting${value !== 1 ? 's' : ''}`, name]}
             />
             <Legend
-              wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }}
+              wrapperStyle={{ fontSize: '12px', color: '#d1d5db' }}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -70,16 +79,13 @@ export function MeetingCharts({ meetings }: MeetingChartsProps) {
         <h3 className="font-heading font-semibold text-sm text-dvn-text-primary mb-4">Meetings by Month</h3>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={monthlyData}>
-            <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip
-              contentStyle={{
-                background: '#111827',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: '8px',
-                color: '#f9fafb',
-                fontSize: '13px',
-              }}
+              contentStyle={tooltipStyle}
+              labelStyle={labelStyle}
+              itemStyle={{ color: '#f9fafb', fontWeight: 600 }}
+              formatter={(value: number) => [`${value} meeting${value !== 1 ? 's' : ''}`, 'Count']}
             />
             <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
           </BarChart>

@@ -1,11 +1,16 @@
 import { motion } from 'framer-motion'
 import { AgentProfileCard } from './AgentProfileCard'
-import { agentProfiles } from '@/data/mock'
+import { useAgents } from '@/hooks/useAgents'
 
 export function AgentProfiles() {
+  const { agents, loading, error } = useAgents()
+
+  if (loading) return <div className="text-center py-12">Loading agents...</div>
+  if (error) return <div className="text-red-400 text-center py-12">Error: {error}</div>
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {agentProfiles.map((agent, i) => (
+      {agents.map((agent, i) => (
         <motion.div
           key={agent.name}
           initial={{ opacity: 0, y: 16 }}

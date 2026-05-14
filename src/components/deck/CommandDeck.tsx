@@ -2,13 +2,18 @@ import { Bot, CheckSquare, Target, MessagesSquare, type LucideIcon } from 'lucid
 import { MetricCard } from './MetricCard'
 import { ActivityFeed } from './ActivityFeed'
 import { AgentStatusPanel } from './AgentStatusPanel'
-import { metrics, activities, agentStatuses } from '@/data/mock'
+import { useCommandDeck } from '@/hooks/useCommandDeck'
 
 const iconMap: Record<string, LucideIcon> = {
   Bot, CheckSquare, Target, MessagesSquare
 }
 
 export function CommandDeck() {
+  const { metrics, activities, agentStatuses, loading, error } = useCommandDeck()
+
+  if (loading) return <div className="text-center py-12">Loading command deck...</div>
+  if (error) return <div className="text-red-400 text-center py-12">Error: {error}</div>
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

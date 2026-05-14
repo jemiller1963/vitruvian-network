@@ -2,18 +2,22 @@ import { useState, useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LogEntryItem } from './LogEntry'
-import { logEntries } from '@/data/mock'
+import { useLogEntries } from '@/hooks/useLogEntries'
 import type { LogEntry } from '@/data/mock'
 
 type CategoryFilter = 'all' | LogEntry['category']
 
 export function AiLog() {
+  const { logEntries, loading, error } = useLogEntries()
   const [filter, setFilter] = useState<CategoryFilter>('all')
 
   const filtered = useMemo(() => {
     if (filter === 'all') return logEntries
     return logEntries.filter((e) => e.category === filter)
-  }, [filter])
+  }, [filter, logEntries])
+
+  if (loading) return <div className="text-center py-12">Loading log...</div>
+  if (error) return <div className="text-red-400 text-center py-12">Error: {error}</div>
 
   return (
     <div className="space-y-4">

@@ -6,11 +6,13 @@ import { MeetingCharts } from './MeetingCharts'
 import { MeetingFilters } from './MeetingFilters'
 import { MeetingCard } from './MeetingCard'
 import { MeetingPagination } from './MeetingPagination'
-import { meetings, type Meeting } from '@/data/mock'
+import { useMeetings } from '@/hooks/useMeetings'
+import type { Meeting } from '@/data/mock'
 
 const ITEMS_PER_PAGE = 25
 
 export function MeetingIntelligence() {
+  const { meetings, loading, error } = useMeetings()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTypes, setActiveTypes] = useState<string[]>([])
   const [dateRange, setDateRange] = useState('all')
@@ -70,7 +72,7 @@ export function MeetingIntelligence() {
     })
 
     return result
-  }, [searchQuery, activeTypes, dateRange, hasActionItems, externalOnly, sortBy])
+  }, [meetings, searchQuery, activeTypes, dateRange, hasActionItems, externalOnly, sortBy])
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
   const paginated = filtered.slice(
@@ -79,16 +81,16 @@ export function MeetingIntelligence() {
   )
 
   const kpiData = useMemo(() => {
-    const thisWeek = meetings.filter((m) => {
-      const d = new Date(m.date)
-      const weekAgo = subDays(new Date(), 7)
-      return d >= weekAgo
-    })
+    const thisWeek = meetings.filter((m) => new Date(m.date) >= subDays(new Date(), 7))
     const openItems = meetings.reduce((sum, m) => sum + m.action_items.filter((a) => !a.done).length, 0)
-    const avgDuration = Math.round(meetings.reduce((sum, m) => sum + m.duration_minutes, 0) / meetings.length)
-
+    const avgDuration = meetings.length
+      ? Math.round(meetings.reduce((sum, m) => sum + m.duration_minutes, 0) / meetings.length)
+      : 0
     return { total: meetings.length, thisWeek: thisWeek.length, openItems, avgDuration }
-  }, [])
+  }, [meetings])
+
+  if (loading) return <div className="text-center py-12">Loading meetings...</div>
+  if (error) return <div className="text-red-400 text-center py-12">Error: {error}</div>
 
   return (
     <div className="space-y-6">
