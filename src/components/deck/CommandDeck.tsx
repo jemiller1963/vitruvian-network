@@ -3,6 +3,7 @@ import { MetricCard } from './MetricCard'
 import { ActivityFeed } from './ActivityFeed'
 import { AgentStatusPanel } from './AgentStatusPanel'
 import { useCommandDeck } from '@/hooks/useCommandDeck'
+import { AgentHealthPanel } from '../agents/AgentHealthPanel/AgentHealthPanel'
 
 const iconMap: Record<string, LucideIcon> = {
   Bot, CheckSquare, Target, MessagesSquare
@@ -29,6 +30,7 @@ export function CommandDeck() {
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-4">
+        <AgentHealthPanel />
         <ActivityFeed activities={activities} />
         <AgentStatusPanel statuses={agentStatuses} />
       </div>
