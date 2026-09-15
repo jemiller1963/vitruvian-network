@@ -1,0 +1,1 @@
+import{useEffect,useState}from'react';import type{SystemSummary}from'@shared/contracts';import{getApi}from'@/lib/api';export function useSystemSummary(){const[data,setData]=useState<SystemSummary|null>(null);useEffect(()=>{void getApi<SystemSummary>('/system/summary').then(setData).catch(()=>undefined)},[]);return data}

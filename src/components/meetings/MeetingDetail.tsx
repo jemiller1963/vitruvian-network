@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Meeting } from '@/data/mock'
-import { formatDistanceToNow } from 'date-fns'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 

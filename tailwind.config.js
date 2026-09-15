@@ -13,8 +13,8 @@ export default {
           surface: "rgba(17, 24, 39, 0.7)",
           border: "rgba(255, 255, 255, 0.06)",
           "text-primary": "#f9fafb",
-          "text-secondary": "#9ca3af",
-          "text-muted": "#6b7280",
+          "text-secondary": "#cbd5e1",
+          "text-muted": "#9ca3af",
         },
         emerald: {
           50: "#ecfdf5",

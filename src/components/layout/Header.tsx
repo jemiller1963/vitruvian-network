@@ -1,27 +1,2 @@
-import { Settings } from 'lucide-react'
-
-export function Header() {
-  return (
-    <header className="glass-card-emerald-left flex items-center justify-between px-6 py-4 mb-6">
-      <div className="flex items-center gap-3">
-        <img src="/Leo_Logo.svg" alt="Leo Logo" className="h-8 w-auto" />
-        <div>
-          <h1 className="font-heading text-xl font-bold text-dvn-text-primary">
-            The Da Vinci Nexus
-          </h1>
-          <p className="text-xs text-dvn-text-muted">AI Agent Command Center</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="status-dot active" />
-          <span className="text-sm text-dvn-text-secondary font-medium">Agent Alpha: Online</span>
-        </div>
-        <span className="text-xs text-dvn-text-muted">Last seen: just now</span>
-        <button className="p-2 rounded-lg hover:bg-white/5 transition-colors text-dvn-text-secondary hover:text-dvn-text-primary">
-          <Settings className="w-4 h-4" />
-        </button>
-      </div>
-    </header>
-  )
-}
+import{Settings}from'lucide-react';import{useSystemSummary}from'@/hooks/useSystemSummary'
+export function Header(){const system=useSystemSummary();const status=system?.gateway.status??'unknown';return <header className="glass-card-emerald-left mb-6 flex flex-wrap items-center justify-between gap-4 px-6 py-4"><div className="flex items-center gap-3"><img src="/Vitruvian_Logo.svg" alt="" className="h-8 w-auto"/><div><h1 className="text-xl font-bold">Vitruvian Network</h1><p className="text-xs text-dvn-text-secondary">AI Agent Command Center</p></div></div><div className="flex flex-wrap items-center gap-4"><div className="flex items-center gap-2"><span aria-hidden="true" className={`status-dot ${status==='healthy'?'active':status==='degraded'?'error':'offline'}`}/><span className="text-sm capitalize">Gateway: {status}</span></div><span className="text-xs text-dvn-text-secondary">Observed {system?'less than a minute ago':'pending'}</span><button disabled aria-label="Settings unavailable" className="rounded-lg p-2 text-dvn-text-secondary"><Settings className="h-4 w-4"/></button></div></header>}

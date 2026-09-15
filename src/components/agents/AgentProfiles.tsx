@@ -1,25 +1,2 @@
-import { motion } from 'framer-motion'
-import { AgentProfileCard } from './AgentProfileCard'
-import { useAgents } from '@/hooks/useAgents'
-
-export function AgentProfiles() {
-  const { agents, loading, error } = useAgents()
-
-  if (loading) return <div className="text-center py-12">Loading agents...</div>
-  if (error) return <div className="text-red-400 text-center py-12">Error: {error}</div>
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {agents.map((agent, i) => (
-        <motion.div
-          key={agent.name}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.1, duration: 0.3 }}
-        >
-          <AgentProfileCard agent={agent} />
-        </motion.div>
-      ))}
-    </div>
-  )
-}
+import{AgentProfileCard}from'./AgentProfileCard';import{useAgents}from'@/hooks/useAgents';import{isFixturePreview}from'@/lib/api'
+export function AgentProfiles(){const{agents,activity,loading,error,stale}=useAgents();if(loading)return <div className="py-12 text-center" role="status">Loading configured agents…</div>;if(error)return <div className="py-12 text-center text-red-300" role="alert">{error}</div>;return <div className="space-y-4"><div className="flex flex-wrap items-baseline justify-between gap-2"><div><h1 className="text-xl font-semibold">Configured Agents</h1><p className="mt-1 text-sm text-dvn-text-secondary">Roster and models are read directly from OpenClaw.</p></div><p className="text-sm">{agents.length} agents</p></div>{isFixturePreview&&<p role="status" className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 text-sm text-cyan-200">Isolated fixture preview — no connection to Leonardo.</p>}{stale&&<p role="status" className="rounded-lg border border-amber-500/30 p-3 text-amber-200">Showing the last verified roster.</p>}<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{agents.map(agent=><div key={agent.id}><AgentProfileCard agent={agent} activity={activity?.byAgentHour.filter(x=>x.agentId===agent.id)??[]}/></div>)}</div></div>}
