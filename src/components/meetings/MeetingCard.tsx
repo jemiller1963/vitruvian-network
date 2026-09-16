@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import { ChevronDown, Globe, ListChecks } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { MeetingDetail } from './MeetingDetail'

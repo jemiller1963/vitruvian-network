@@ -1,0 +1,117 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { buildApp } from './app.js'
+import { openDatabase } from './db.js'
+import type { AppConfig } from './config.js'
+
+const cleanup: Array<() => Promise<void> | void> = []
+
+afterEach(async () => {
+  for (const action of cleanup.splice(0).reverse()) await action()
+})
+
+async function fixture() {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'vitruvian-'))
+  const configPath = path.join(directory, 'openclaw.json')
+  const staticDir = path.join(directory, 'dist')
+  await fs.mkdir(path.join(staticDir, 'assets'), { recursive: true })
+  await fs.writeFile(
+    configPath,
+    JSON.stringify({
+      auth: { token: 'must-not-leak' },
+      agents: {
+        defaults: { model: { primary: 'provider/default' } },
+        list: [
+          {
+            id: 'main',
+            name: 'Leo',
+            model: { primary: 'provider/leo' },
+            subagents: { allowAgents: ['researcher', 'raph'] },
+          },
+          { id: 'researcher', name: 'Researcher' },
+        ],
+      },
+    }),
+  )
+  await fs.writeFile(path.join(staticDir, 'index.html'), '<main>Vitruvian shell</main>')
+  await fs.writeFile(path.join(staticDir, 'assets', 'app.js'), 'window.VITRUVIAN = true')
+
+  const config: AppConfig = {
+    host: '127.0.0.1',
+    port: 50_123,
+    databasePath: path.join(directory, 'test.db'),
+    openclawConfigPath: configPath,
+    openclawBinary: 'definitely-not-openclaw',
+    staticDir,
+    allowedOrigins: ['http://127.0.0.1:5173'],
+  }
+  const db = openDatabase(config.databasePath)
+  const app = buildApp({ config, db })
+  cleanup.push(async () => {
+    await app.close()
+    db.close()
+    await fs.rm(directory, { recursive: true, force: true })
+  })
+  return app
+}
+
+describe('API', () => {
+  it('returns a safe config-derived roster', async () => {
+    const app = await fixture()
+    const response = await app.inject({ method: 'GET', url: '/api/v1/agents' })
+    expect(response.statusCode).toBe(200)
+    expect(response.json().data.map((agent: any) => agent.id)).toEqual(['main', 'researcher'])
+    expect(response.body).not.toContain('must-not-leak')
+    expect(response.body).not.toContain('/tmp/')
+  })
+
+  it('returns zero buckets and unavailable runtime truthfully', async () => {
+    const app = await fixture()
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics/activity?days=7&timezone=UTC',
+    })
+    expect(response.json().data.daily).toHaveLength(7)
+    expect(response.json().data.byAgentHour).toHaveLength(48)
+    expect(response.json().data.byAgentHour.every((item: any) => item.count === 0)).toBe(true)
+  })
+
+  it('rejects unapproved origins and malformed limits', async () => {
+    const app = await fixture()
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/v1/health',
+          headers: { origin: 'https://evil.example' },
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/events?limit=999' })).statusCode,
+    ).toBe(400)
+  })
+
+  it('serves the built dashboard and static assets', async () => {
+    const app = await fixture()
+    const shell = await app.inject({ method: 'GET', url: '/' })
+    const asset = await app.inject({ method: 'GET', url: '/assets/app.js' })
+    expect(shell.statusCode).toBe(200)
+    expect(shell.body).toContain('Vitruvian shell')
+    expect(shell.headers['cache-control']).toContain('no-store')
+    expect(asset.statusCode).toBe(200)
+    expect(asset.body).toContain('VITRUVIAN')
+  })
+
+  it('uses the SPA shell for browser routes but preserves API 404s', async () => {
+    const app = await fixture()
+    const browserRoute = await app.inject({ method: 'GET', url: '/agents' })
+    const apiRoute = await app.inject({ method: 'GET', url: '/api/v1/missing' })
+    expect(browserRoute.statusCode).toBe(200)
+    expect(browserRoute.body).toContain('Vitruvian shell')
+    expect(apiRoute.statusCode).toBe(404)
+    expect(apiRoute.json().error.code).toBe('NOT_FOUND')
+  })
+})

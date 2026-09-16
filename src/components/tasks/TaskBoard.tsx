@@ -14,7 +14,7 @@ const columns = [
 export function TaskBoard() {
   const { tasks: remoteTasks, loading, error } = useTasks()
   const [tasks, setTasks] = useState<Task[]>([])
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [, setDraggedTaskId] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { Header } from '@/components/layout/Header'
 import { TabBar } from '@/components/layout/TabBar'
 import { CommandDeck } from '@/components/deck/CommandDeck'
@@ -24,11 +24,11 @@ export default function App() {
   const ActiveComponent = tabs[activeTab as keyof typeof tabs]
 
   return (
-    <div className="min-h-screen bg-dvn-bg">
+    <MotionConfig reducedMotion="user"><div className="min-h-screen bg-dvn-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Header />
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
-        <AnimatePresence mode="wait">
+        <main><AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 8 }}
@@ -38,8 +38,8 @@ export default function App() {
           >
             <ActiveComponent />
           </motion.div>
-        </AnimatePresence>
+        </AnimatePresence></main>
       </div>
-    </div>
+    </div></MotionConfig>
   )
 }

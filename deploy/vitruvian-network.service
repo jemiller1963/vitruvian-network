@@ -1,0 +1,21 @@
+[Unit]
+Description=Vitruvian Network dashboard
+After=network-online.target openclaw-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/vitruvian-network
+EnvironmentFile=%h/.config/vitruvian-network/env
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env npm run start:api
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/vitruvian-network
+
+[Install]
+WantedBy=default.target

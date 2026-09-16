@@ -1,0 +1,2 @@
+import{useEffect}from'react';import{isFixturePreview}from'@/lib/api'
+export function useLiveRefresh(refresh:()=>void){useEffect(()=>{if(isFixturePreview)return;const stream=new EventSource('/api/v1/stream');for(const event of['agents.changed','events.changed','system.changed'])stream.addEventListener(event,refresh);const timer=window.setInterval(refresh,30000);return()=>{window.clearInterval(timer);stream.close()}},[refresh])}
