@@ -7,6 +7,7 @@ import type { AppConfig } from './config.js'
 import { currentRevision } from './db.js'
 import type { Db } from './db.js'
 import { OpenClawAdapter } from './openclaw.js'
+import type { ConfiguredAgent } from './openclaw.js'
 import { TelemetryStore } from './telemetry.js'
 
 const agentParams = z.object({ id: z.string().min(1).max(100).regex(/^[a-zA-Z0-9._-]+$/) })
@@ -19,10 +20,12 @@ export function buildApp({
 }: {
   config: AppConfig
   db: Db
-  openclaw?: OpenClawAdapter
+  openclaw?: Pick<OpenClawAdapter, 'configuredAgents'>
   telemetry?: TelemetryStore
 }) {
   const app = Fastify({ logger: false, bodyLimit: 65_536 })
+  const configuredAgents = async (): Promise<ConfiguredAgent[]> =>
+    config.fixtureIsolation ? [] : openclaw.configuredAgents()
 
   app.addHook('onRequest', async (request, reply) => {
     const origin = request.headers.origin
@@ -52,17 +55,23 @@ export function buildApp({
   })
 
   app.get('/api/v1/health', async () => ({
-    data: { status: 'ready', version: '0.2.0', observedAt: new Date().toISOString() },
+    data: {
+      status: 'ready',
+      version: '0.2.0',
+      mode: config.fixtureIsolation ? 'fixture-isolated' : 'live',
+      collectorsEnabled: !config.fixtureIsolation,
+      observedAt: new Date().toISOString(),
+    },
   }))
 
   app.get('/api/v1/agents', async () => {
-    const roster = await openclaw.configuredAgents()
+    const roster = await configuredAgents()
     return { data: telemetry.agents(roster) }
   })
 
   app.get('/api/v1/agents/:id', async (request, reply) => {
     const { id } = agentParams.parse(request.params)
-    const found = telemetry.agentDetail(await openclaw.configuredAgents(), id)
+    const found = telemetry.agentDetail(await configuredAgents(), id)
     return found
       ? { data: found }
       : reply.code(404).send({
@@ -81,13 +90,13 @@ export function buildApp({
   }))
 
   app.get('/api/v1/metrics/summary', async () => ({
-    data: telemetry.metrics((await openclaw.configuredAgents()).length),
+    data: telemetry.metrics((await configuredAgents()).length),
   }))
 
   app.get('/api/v1/metrics/activity', async (request) => {
     const query = activityQuerySchema.parse(request.query)
     return {
-      data: telemetry.activity(await openclaw.configuredAgents(), query.days, query.timezone),
+      data: telemetry.activity(await configuredAgents(), query.days, query.timezone),
     }
   })
 

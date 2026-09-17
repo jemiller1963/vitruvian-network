@@ -1,19 +1,18 @@
 import { buildApp } from './app.js'
-import { CollectorManager } from './collectors.js'
 import { loadConfig } from './config.js'
 import { openDatabase } from './db.js'
+import { startCollectorManager } from './runtime.js'
 
 const config = loadConfig()
 const db = openDatabase(config.databasePath)
-const collectors = new CollectorManager(config, db)
+const collectors = startCollectorManager(config, db)
 const app = buildApp({ config, db })
-collectors.start()
 
 let stopping = false
 const stop = async () => {
   if (stopping) return
   stopping = true
-  collectors.stop()
+  collectors?.stop()
   await app.close()
   db.close()
 }

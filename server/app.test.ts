@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -12,7 +12,10 @@ afterEach(async () => {
   for (const action of cleanup.splice(0).reverse()) await action()
 })
 
-async function fixture() {
+async function fixture(options: {
+  fixtureIsolation?: boolean
+  openclaw?: { configuredAgents(): Promise<never> }
+} = {}) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'vitruvian-'))
   const configPath = path.join(directory, 'openclaw.json')
   const staticDir = path.join(directory, 'dist')
@@ -45,11 +48,12 @@ async function fixture() {
     openclawConfigPath: configPath,
     openclawBinary: 'definitely-not-openclaw',
     telemetryHmacSecret: 'a-secure-test-secret-with-32-characters',
+    fixtureIsolation: options.fixtureIsolation ?? false,
     staticDir,
     allowedOrigins: ['http://127.0.0.1:5173'],
   }
   const db = openDatabase(config.databasePath)
-  const app = buildApp({ config, db })
+  const app = buildApp({ config, db, openclaw: options.openclaw })
   cleanup.push(async () => {
     await app.close()
     db.close()
@@ -59,6 +63,37 @@ async function fixture() {
 }
 
 describe('API', () => {
+  it('does not access OpenClaw while backend fixture isolation is enabled', async () => {
+    const configuredAgents = vi.fn(async (): Promise<never> => {
+      throw new Error('OPENCLAW_MUST_NOT_BE_ACCESSED')
+    })
+    const app = await fixture({ fixtureIsolation: true, openclaw: { configuredAgents } })
+
+    const agents = await app.inject({ method: 'GET', url: '/api/v1/agents' })
+    const agent = await app.inject({ method: 'GET', url: '/api/v1/agents/main' })
+    const metrics = await app.inject({ method: 'GET', url: '/api/v1/metrics/summary' })
+    const activity = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics/activity?days=7&timezone=UTC',
+    })
+
+    expect(agents.statusCode).toBe(200)
+    expect(agents.json().data).toEqual([])
+    expect(agent.statusCode).toBe(404)
+    expect(metrics.statusCode).toBe(200)
+    expect(metrics.json().data.configuredAgents.value).toBe(0)
+    expect(activity.statusCode).toBe(200)
+    expect(configuredAgents).not.toHaveBeenCalled()
+
+    const health = await app.inject({ method: 'GET', url: '/api/v1/health' })
+    expect(health.json().data).toMatchObject({
+      status: 'ready',
+      version: '0.2.0',
+      mode: 'fixture-isolated',
+      collectorsEnabled: false,
+    })
+  })
+
   it('returns a safe config-derived roster', async () => {
     const app = await fixture()
     const response = await app.inject({ method: 'GET', url: '/api/v1/agents' })
