@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { Header } from '@/components/layout/Header'
 import { TabBar } from '@/components/layout/TabBar'
@@ -8,6 +8,7 @@ import { TaskBoard } from '@/components/tasks/TaskBoard'
 import { AiLog } from '@/components/log/AiLog'
 import { Council } from '@/components/council/Council'
 import { MeetingIntelligence } from '@/components/meetings/MeetingIntelligence'
+import { pathForTab, tabFromPath, type DashboardTab } from '@/lib/navigation'
 
 const tabs = {
   deck: CommandDeck,
@@ -21,9 +22,21 @@ const tabs = {
 const deploymentLabel = import.meta.env.VITE_VITRUVIAN_DEPLOYMENT_LABEL
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('deck')
+  const [activeTab, setActiveTab] = useState<DashboardTab>(() => tabFromPath(window.location.pathname))
 
-  const ActiveComponent = tabs[activeTab as keyof typeof tabs]
+  useEffect(() => {
+    const syncFromHistory = () => setActiveTab(tabFromPath(window.location.pathname))
+    window.addEventListener('popstate', syncFromHistory)
+    return () => window.removeEventListener('popstate', syncFromHistory)
+  }, [])
+
+  const selectTab = (tab: DashboardTab) => {
+    const path = pathForTab(tab)
+    if (window.location.pathname !== path) window.history.pushState({ tab }, '', path)
+    setActiveTab(tab)
+  }
+
+  const ActiveComponent = tabs[activeTab]
 
   return (
     <MotionConfig reducedMotion="user"><div className="min-h-screen bg-dvn-bg">
@@ -34,7 +47,7 @@ export default function App() {
           </p>
         )}
         <Header />
-        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabBar activeTab={activeTab} onTabChange={selectTab} />
         <main><AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

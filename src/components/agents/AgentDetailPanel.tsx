@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AgentDetail } from '@shared/contracts'
 import { getApi } from '@/lib/api'
 
 export function AgentDetailPanel({ agentId, onClose }: { agentId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<AgentDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    closeButton.current?.focus()
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
   useEffect(() => {
     const controller = new AbortController()
     getApi<AgentDetail>(`/agents/${encodeURIComponent(agentId)}`, controller.signal)
@@ -16,7 +25,7 @@ export function AgentDetailPanel({ agentId, onClose }: { agentId: string; onClos
     <section className="glass-card max-h-[90vh] w-full max-w-3xl overflow-y-auto p-6">
       <div className="flex items-start justify-between gap-4">
         <div><h2 id="agent-detail-title" className="text-xl font-semibold">{detail?.displayName ?? agentId}</h2><p className="text-sm text-dvn-text-secondary">Sanitized operational metadata only</p></div>
-        <button type="button" onClick={onClose} className="rounded-md border border-white/10 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">Close</button>
+        <button ref={closeButton} type="button" onClick={onClose} className="rounded-md border border-white/10 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">Close</button>
       </div>
       {error && <p className="mt-6 text-red-300" role="alert">{error}</p>}
       {!detail && !error && <p className="mt-6" role="status">Loading verified agent detail…</p>}

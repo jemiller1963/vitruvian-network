@@ -4,7 +4,7 @@ export function AgentActivityHeatmap({ buckets }: { buckets: AgentActivityBucket
   const max = Math.max(0, ...buckets.map((item) => item.count))
   const days = [...new Set(buckets.map((item) => item.day))].sort()
   const byKey = new Map(buckets.map((item) => [`${item.day}|${item.hour}`, item]))
-  return <div>
+  return <div className="min-w-0 max-w-full">
     <div className="mb-2 flex justify-between text-xs text-dvn-text-secondary">
       <span>Activity · seven days by hour</span>
       <span>{buckets.reduce((sum, item) => sum + item.count, 0)} events</span>
@@ -29,10 +29,12 @@ export function AgentActivityHeatmap({ buckets }: { buckets: AgentActivityBucket
         </div>
       </div>
     </div>
-    <table className="sr-only">
-      <caption>Agent activity by day and hour</caption>
-      <thead><tr><th>Day</th><th>Hour</th><th>Events</th></tr></thead>
-      <tbody>{buckets.map((bucket) => <tr key={`${bucket.day}-${bucket.hour}`}><td>{bucket.day}</td><td>{bucket.hour}</td><td>{bucket.count}</td></tr>)}</tbody>
-    </table>
+    <div className="sr-only">
+      <table>
+        <caption>Agent activity by day and hour</caption>
+        <thead><tr><th>Day</th><th>Hour</th><th>Events</th></tr></thead>
+        <tbody>{buckets.map((bucket) => <tr key={`${bucket.day}-${bucket.hour}`}><td>{bucket.day}</td><td>{bucket.hour}</td><td>{bucket.count}</td></tr>)}</tbody>
+      </table>
+    </div>
   </div>
 }

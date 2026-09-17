@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAgents } from '@/hooks/useAgents'
 import { isFixturePreview } from '@/lib/api'
 import { AgentDetailPanel } from './AgentDetailPanel'
@@ -7,6 +7,15 @@ import { AgentProfileCard } from './AgentProfileCard'
 export function AgentProfiles() {
   const { agents, activity, loading, error, stale } = useAgents()
   const [selected, setSelected] = useState<string | null>(null)
+  const inspectTrigger = useRef<HTMLButtonElement | null>(null)
+  const inspectAgent = (agentId: string, trigger: HTMLButtonElement) => {
+    inspectTrigger.current = trigger
+    setSelected(agentId)
+  }
+  const closeDetail = () => {
+    setSelected(null)
+    window.requestAnimationFrame(() => inspectTrigger.current?.focus())
+  }
   if (loading) return <div className="py-12 text-center" role="status">Loading configured agents…</div>
   if (error) return <div className="py-12 text-center text-red-300" role="alert">{error}</div>
   return <div className="space-y-4">
@@ -21,9 +30,11 @@ export function AgentProfiles() {
         key={agent.id}
         agent={agent}
         activity={activity?.byAgentHour.filter((item) => item.agentId === agent.id) ?? []}
-        onInspect={setSelected}
+        onInspect={inspectAgent}
       />)}
     </div>
-    {selected && <AgentDetailPanel agentId={selected} onClose={() => setSelected(null)}/>}
+    {selected && (
+      <AgentDetailPanel agentId={selected} onClose={closeDetail}/>
+    )}
   </div>
 }

@@ -16,7 +16,7 @@ export function AgentProfileCard({
 }: {
   agent: AgentSummary
   activity: AgentActivityBucket[]
-  onInspect: (id: string) => void
+  onInspect: (id: string, trigger: HTMLButtonElement) => void
 }) {
   return <article className="glass-card h-full p-5" aria-labelledby={`agent-${agent.id}`}>
     <div className="mb-5 flex items-start gap-4">
@@ -43,7 +43,7 @@ export function AgentProfileCard({
     <div className="mt-5 border-t border-white/5 pt-4"><AgentActivityHeatmap buckets={activity}/></div>
     <div className="mt-4 flex items-center justify-between gap-3">
       <p className="text-xs text-dvn-text-secondary">{agent.evidenceLevel} · {agent.stale ? 'stale' : 'fresh'}</p>
-      <button type="button" onClick={() => onInspect(agent.id)} className="rounded-md border border-white/10 px-3 py-2 text-xs hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">Inspect details</button>
+      <button type="button" onClick={(event) => onInspect(agent.id, event.currentTarget)} className="rounded-md border border-white/10 px-3 py-2 text-xs hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">Inspect details</button>
     </div>
   </article>
 }

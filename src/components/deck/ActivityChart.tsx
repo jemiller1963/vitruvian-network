@@ -29,10 +29,12 @@ export function ActivityChart({ activity }: { activity: ActivityMetrics }) {
         </BarChart>
       </ResponsiveContainer>
     </div>
-    <table className="sr-only">
-      <caption>Seven-day activity totals</caption>
-      <thead><tr><th>Day</th><th>Successful runs</th><th>Failed runs</th><th>Successful tasks</th><th>Failed tasks</th></tr></thead>
-      <tbody>{data.map((row) => <tr key={row.start}><th>{row.label}</th><td>{row.successfulRuns}</td><td>{row.failedRuns}</td><td>{row.successfulTasks}</td><td>{row.failedTasks}</td></tr>)}</tbody>
-    </table>
+    <div className="sr-only">
+      <table>
+        <caption>Seven-day activity totals</caption>
+        <thead><tr><th>Day</th><th>Successful runs</th><th>Failed runs</th><th>Successful tasks</th><th>Failed tasks</th></tr></thead>
+        <tbody>{data.map((row) => <tr key={row.start}><th>{row.label}</th><td>{row.successfulRuns}</td><td>{row.failedRuns}</td><td>{row.successfulTasks}</td><td>{row.failedTasks}</td></tr>)}</tbody>
+      </table>
+    </div>
   </section>
 }
