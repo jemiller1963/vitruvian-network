@@ -18,6 +18,8 @@ const tabs = {
   meetings: MeetingIntelligence,
 } as const
 
+const deploymentLabel = import.meta.env.VITE_VITRUVIAN_DEPLOYMENT_LABEL
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('deck')
 
@@ -26,6 +28,11 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user"><div className="min-h-screen bg-dvn-bg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {deploymentLabel && (
+          <p role="status" className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-center text-sm font-medium text-amber-400">
+            {deploymentLabel}
+          </p>
+        )}
         <Header />
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
         <main><AnimatePresence mode="wait">
