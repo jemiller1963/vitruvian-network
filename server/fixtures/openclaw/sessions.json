@@ -1,0 +1,11 @@
+{
+  "sessions": [
+    {
+      "agentId": "main",
+      "key": "agent:main:telegram:direct:private",
+      "model": "openai/gpt-5.6-sol",
+      "updatedAt": "2026-09-16T18:00:03.000Z",
+      "path": "/home/jem/.openclaw/private.sqlite"
+    }
+  ]
+}

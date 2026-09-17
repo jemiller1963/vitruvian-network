@@ -44,6 +44,7 @@ async function fixture() {
     databasePath: path.join(directory, 'test.db'),
     openclawConfigPath: configPath,
     openclawBinary: 'definitely-not-openclaw',
+    telemetryHmacSecret: 'a-secure-test-secret-with-32-characters',
     staticDir,
     allowedOrigins: ['http://127.0.0.1:5173'],
   }
@@ -63,19 +64,34 @@ describe('API', () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/agents' })
     expect(response.statusCode).toBe(200)
     expect(response.json().data.map((agent: any) => agent.id)).toEqual(['main', 'researcher'])
+    expect(response.json().data[0]).toMatchObject({
+      runtimeStatus: 'unknown',
+      evidenceLevel: 'unavailable',
+      activeRuns: 0,
+      activeTasks: 0,
+    })
     expect(response.body).not.toContain('must-not-leak')
     expect(response.body).not.toContain('/tmp/')
   })
 
-  it('returns zero buckets and unavailable runtime truthfully', async () => {
+  it('returns unavailable coverage instead of pretending empty telemetry is ready', async () => {
     const app = await fixture()
     const response = await app.inject({
       method: 'GET',
       url: '/api/v1/metrics/activity?days=7&timezone=UTC',
     })
     expect(response.json().data.daily).toHaveLength(7)
-    expect(response.json().data.byAgentHour).toHaveLength(48)
+    expect(response.json().data.byAgentHour).toHaveLength(336)
     expect(response.json().data.byAgentHour.every((item: any) => item.count === 0)).toBe(true)
+    expect(response.json().data.status).toBe('unavailable')
+    const metrics = await app.inject({ method: 'GET', url: '/api/v1/metrics/summary' })
+    expect(metrics.json().data.workingNow).toMatchObject({
+      value: null,
+      status: 'unavailable',
+    })
+    const health = await app.inject({ method: 'GET', url: '/api/v1/telemetry/health' })
+    expect(health.statusCode).toBe(200)
+    expect(health.json().data.collectors).toEqual([])
   })
 
   it('rejects unapproved origins and malformed limits', async () => {

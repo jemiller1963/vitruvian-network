@@ -1,0 +1,15 @@
+{
+  "tasks": [
+    {
+      "taskId": "task-secret-1",
+      "agentId": "researcher",
+      "parentAgentId": "main",
+      "runtime": "subagent",
+      "status": "succeeded",
+      "terminalOutcome": "succeeded",
+      "startedAt": "2026-09-16T18:01:00.000Z",
+      "completedAt": "2026-09-16T18:02:00.000Z",
+      "updatedAt": "2026-09-16T18:02:00.000Z"
+    }
+  ]
+}

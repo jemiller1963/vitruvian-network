@@ -1,2 +1,108 @@
-import fs from'node:fs/promises';import{execFile}from'node:child_process';import{promisify}from'node:util';import type{AgentSummary}from'../shared/contracts.js';import type{AppConfig}from'./config.js';const run=promisify(execFile)
-export class OpenClawAdapter{constructor(private config:AppConfig){}async agents():Promise<AgentSummary[]>{const raw=JSON.parse(await fs.readFile(this.config.openclawConfigPath,'utf8'))as any;const list=raw.agents?.list??[];const defaults=raw.agents?.defaults??{};const observedAt=new Date().toISOString();let live=new Map<string,any>();try{const result=await run(this.config.openclawBinary,['status','--json'],{timeout:5000,maxBuffer:1_000_000});const state=JSON.parse(result.stdout);live=new Map((state.agents??[]).map((x:any)=>[x.id,x]))}catch{/* explicit unknown state */}return list.map((a:any)=>{const state=live.get(a.id);return{id:String(a.id),displayName:String(a.name??a.id),configuredModel:String(a.model?.primary??a.model??defaults.model?.primary??'Unavailable'),allowedSubagents:Array.isArray(a.subagents?.allowAgents)?a.subagents.allowAgents.map(String):[],runtimeStatus:state?.status??'unknown',currentActivity:state?.activity??null,lastSeenAt:state?.lastSeenAt??null,observedAt,stale:false}})}async gateway(){try{const result=await run(this.config.openclawBinary,['status','--json'],{timeout:5000,maxBuffer:1_000_000});const state=JSON.parse(result.stdout);return{status:state.gateway?.status==='healthy'?'healthy':'degraded' as const,version:state.version??null,observedAt:new Date().toISOString()}}catch{return{status:'unknown' as const,version:null,observedAt:new Date().toISOString(),reason:'OpenClaw status is unavailable.'}}}}
+import fs from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import type { AppConfig } from './config.js'
+
+const run = promisify(execFile)
+
+export interface ConfiguredAgent {
+  id: string
+  displayName: string
+  configuredModel: string | null
+  allowedSubagents: string[]
+}
+
+export interface AuditPage {
+  records: unknown[]
+  nextCursor: string | null
+  schemaVersion: string
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function arrayFrom(value: unknown, keys: string[]): unknown[] {
+  if (Array.isArray(value)) return value
+  const source = record(value)
+  for (const key of keys) if (Array.isArray(source[key])) return source[key] as unknown[]
+  return []
+}
+
+function string(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+export class OpenClawAdapter {
+  constructor(private config: AppConfig) {}
+
+  async configuredAgents(): Promise<ConfiguredAgent[]> {
+    const raw = record(JSON.parse(await fs.readFile(this.config.openclawConfigPath, 'utf8')))
+    const agents = record(raw.agents)
+    const defaults = record(agents.defaults)
+    const defaultModel = record(defaults.model)
+    return arrayFrom(agents.list, []).map((value) => {
+      const agent = record(value)
+      const model = record(agent.model)
+      const subagents = record(agent.subagents)
+      const id = string(agent.id) ?? 'unknown'
+      return {
+        id,
+        displayName: string(agent.name) ?? id,
+        configuredModel:
+          string(model.primary) ?? string(agent.model) ?? string(defaultModel.primary),
+        allowedSubagents: arrayFrom(subagents.allowAgents, []).flatMap((item) =>
+          string(item) ? [String(item)] : [],
+        ),
+      }
+    })
+  }
+
+  async status(): Promise<Record<string, unknown>> {
+    return record(await this.json(['status', '--json']))
+  }
+
+  async auditPage(options: { after?: string; cursor?: string; limit?: number } = {}): Promise<AuditPage> {
+    const args = ['audit']
+    if (options.after) args.push('--after', options.after)
+    if (options.cursor) args.push('--cursor', options.cursor)
+    args.push('--limit', String(options.limit ?? 500), '--json')
+    const payload = await this.json(args)
+    const source = record(payload)
+    return {
+      records: arrayFrom(payload, ['records', 'items', 'activity', 'events', 'data']),
+      nextCursor: string(source.nextCursor),
+      schemaVersion: string(source.version) ?? string(source.schemaVersion) ?? 'unknown',
+    }
+  }
+
+  async tasks(): Promise<unknown[]> {
+    return arrayFrom(await this.json(['tasks', 'list', '--json']), ['tasks', 'items', 'data'])
+  }
+
+  async flows(): Promise<unknown[]> {
+    return arrayFrom(await this.json(['tasks', 'flow', 'list', '--json']), ['flows', 'items', 'data'])
+  }
+
+  async taskAudit(): Promise<unknown[]> {
+    return arrayFrom(await this.json(['tasks', 'audit', '--json']), ['findings', 'items', 'data'])
+  }
+
+  async sessions(): Promise<unknown[]> {
+    return arrayFrom(
+      await this.json(['sessions', '--all-agents', '--limit', '500', '--json']),
+      ['sessions', 'items', 'data'],
+    )
+  }
+
+  private async json(args: string[]): Promise<unknown> {
+    const result = await run(this.config.openclawBinary, args, {
+      timeout: 8_000,
+      maxBuffer: 2_000_000,
+      env: { ...process.env, NO_COLOR: '1' },
+    })
+    return JSON.parse(result.stdout) as unknown
+  }
+}
