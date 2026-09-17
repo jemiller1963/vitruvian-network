@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { Header } from '@/components/layout/Header'
 import { TabBar } from '@/components/layout/TabBar'
+import { FixtureDeferredPanel } from '@/components/layout/FixtureDeferredPanel'
 import { CommandDeck } from '@/components/deck/CommandDeck'
 import { AgentProfiles } from '@/components/agents/AgentProfiles'
 import { TaskBoard } from '@/components/tasks/TaskBoard'
@@ -9,6 +10,8 @@ import { AiLog } from '@/components/log/AiLog'
 import { Council } from '@/components/council/Council'
 import { MeetingIntelligence } from '@/components/meetings/MeetingIntelligence'
 import { pathForTab, tabFromPath, type DashboardTab } from '@/lib/navigation'
+import { isFixturePreview } from '@/lib/api'
+import { isFixtureDeferredTab } from '@/lib/fixture-isolation'
 
 const tabs = {
   deck: CommandDeck,
@@ -37,6 +40,7 @@ export default function App() {
   }
 
   const ActiveComponent = tabs[activeTab]
+  const showFixtureDeferredPanel = isFixturePreview && isFixtureDeferredTab(activeTab)
 
   return (
     <MotionConfig reducedMotion="user"><div className="min-h-screen bg-dvn-bg">
@@ -56,7 +60,11 @@ export default function App() {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
           >
-            <ActiveComponent />
+            {showFixtureDeferredPanel ? (
+              <FixtureDeferredPanel section={activeTab} />
+            ) : (
+              <ActiveComponent />
+            )}
           </motion.div>
         </AnimatePresence></main>
       </div>
