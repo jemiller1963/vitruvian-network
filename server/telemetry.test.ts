@@ -99,6 +99,9 @@ describe('telemetry normalization and storage', () => {
   it('uses safe collector error codes', () => {
     expect(sanitizeErrorCode(new SyntaxError('raw payload and path /private'))).toBe('MALFORMED_JSON')
     expect(sanitizeErrorCode(new Error('token=secret'))).toBe('SOURCE_UNAVAILABLE')
+    expect(sanitizeErrorCode(new Error('OPENCLAW_COMMAND_OUTPUT_LIMIT'))).toBe(
+      'OPENCLAW_COMMAND_OUTPUT_LIMIT',
+    )
   })
 
   it('stores system samples and derives agent state only from fresh evidence', () => {

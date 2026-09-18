@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CollectorManager } from './collectors.js'
+import { CollectorManager, statusSnapshot } from './collectors.js'
 import type { AppConfig } from './config.js'
 import type { Db } from './db.js'
 import type { OpenClawAdapter } from './openclaw.js'
@@ -25,6 +25,32 @@ const fakeStore = () => ({
   markCollectorSuccess: vi.fn(),
   refreshAgentState: vi.fn(),
   upsertTasks: vi.fn(),
+})
+
+describe('OpenClaw status compatibility', () => {
+  it('maps the installed status envelope to gateway health and runtime version', () => {
+    expect(statusSnapshot({
+      runtimeVersion: '2026.7.1-2',
+      gateway: { reachable: true, misconfigured: false, error: null },
+    })).toEqual({ status: 'healthy', version: '2026.7.1-2' })
+
+    expect(statusSnapshot({
+      runtimeVersion: '2026.7.1-2',
+      gateway: { reachable: false, misconfigured: false, error: null },
+    })).toEqual({ status: 'degraded', version: '2026.7.1-2' })
+
+    expect(statusSnapshot({
+      runtimeVersion: '2026.7.1-2',
+      gateway: { reachable: true, misconfigured: true, error: null },
+    })).toEqual({ status: 'degraded', version: '2026.7.1-2' })
+
+    expect(statusSnapshot({
+      runtimeVersion: '2026.7.1-2',
+      gateway: { reachable: true, misconfigured: false, error: 'connection failed' },
+    })).toEqual({ status: 'degraded', version: '2026.7.1-2' })
+
+    expect(statusSnapshot({ gateway: {} })).toEqual({ status: 'unknown', version: null })
+  })
 })
 
 describe('collector resource controls', () => {
@@ -79,6 +105,37 @@ describe('collector resource controls', () => {
 
     expect(taskAudit).toHaveBeenCalledOnce()
     expect(maxActive).toBe(1)
+  })
+
+  it('suppresses a source for the process after a hard output-limit failure', async () => {
+    const store = fakeStore()
+    const flows = vi.fn(async (): Promise<never> => {
+      throw new Error('OPENCLAW_COMMAND_OUTPUT_LIMIT')
+    })
+    const taskAudit = vi.fn(async () => [])
+    const openclaw = {
+      flows,
+      taskAudit,
+      configuredAgents: vi.fn(async () => []),
+    } as unknown as OpenClawAdapter
+
+    const manager = new CollectorManager(
+      config(),
+      {} as Db,
+      openclaw,
+      store as unknown as TelemetryStore,
+    )
+
+    await manager.collectOnce('flows')
+    await manager.collectOnce('flows')
+    await manager.collectOnce('task_audit')
+
+    expect(flows).toHaveBeenCalledOnce()
+    expect(store.markCollectorFailure).toHaveBeenCalledWith(
+      'flows',
+      'OPENCLAW_COMMAND_OUTPUT_LIMIT',
+    )
+    expect(taskAudit).toHaveBeenCalledOnce()
   })
 
   it('does not start queued collectors after stop', async () => {

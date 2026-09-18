@@ -785,7 +785,13 @@ function nullableNumber(value: unknown): number | null {
 
 export function sanitizeErrorCode(error: unknown): string {
   if (!(error instanceof Error)) return 'COLLECTOR_FAILED'
-  if (error.message.startsWith('AUDIT_') || error.message.startsWith('TASK_') || error.message.startsWith('FLOW_') || error.message === 'HMAC_SECRET_MISSING') {
+  if (
+    error.message.startsWith('AUDIT_')
+    || error.message.startsWith('TASK_')
+    || error.message.startsWith('FLOW_')
+    || error.message === 'HMAC_SECRET_MISSING'
+    || error.message === 'OPENCLAW_COMMAND_OUTPUT_LIMIT'
+  ) {
     return error.message
   }
   const candidate = error.name === 'SyntaxError' ? 'MALFORMED_JSON' : 'SOURCE_UNAVAILABLE'

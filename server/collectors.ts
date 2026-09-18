@@ -20,6 +20,35 @@ const intervals: Record<Source, number> = {
   system: 30_000,
 }
 
+export function statusSnapshot(status: Record<string, unknown>): {
+  status: 'healthy' | 'degraded' | 'unknown'
+  version: string | null
+} {
+  const gateway = status.gateway
+  const gatewayRecord = gateway && typeof gateway === 'object' && !Array.isArray(gateway)
+    ? gateway as Record<string, unknown>
+    : {}
+  const hasError = gatewayRecord.error !== null
+    && gatewayRecord.error !== undefined
+    && gatewayRecord.error !== false
+    && gatewayRecord.error !== ''
+
+  const gatewayStatus = gatewayRecord.reachable === true
+    && gatewayRecord.misconfigured !== true
+    && !hasError
+    ? 'healthy'
+    : gatewayRecord.reachable === false
+      || gatewayRecord.misconfigured === true
+      || hasError
+      ? 'degraded'
+      : 'unknown'
+
+  return {
+    status: gatewayStatus,
+    version: typeof status.runtimeVersion === 'string' ? status.runtimeVersion : null,
+  }
+}
+
 export class CollectorManager {
   private timers: NodeJS.Timeout[] = []
   private running = new Set<Source>()
@@ -27,6 +56,7 @@ export class CollectorManager {
   private normalizer: TelemetryNormalizer | null
   private activeCollectors = 0
   private permitWaiters: Array<(granted: boolean) => void> = []
+  private suppressedSources = new Set<Source>()
 
   constructor(
     private config: AppConfig,
@@ -85,7 +115,7 @@ export class CollectorManager {
   }
 
   private async run(source: Source) {
-    if (this.stopped || this.running.has(source)) return
+    if (this.stopped || this.suppressedSources.has(source) || this.running.has(source)) return
     this.running.add(source)
 
     const granted = await this.acquirePermit()
@@ -110,7 +140,9 @@ export class CollectorManager {
       const roster = await this.openclaw.configuredAgents()
       this.store.refreshAgentState(roster)
     } catch (error) {
-      this.store.markCollectorFailure(source, sanitizeErrorCode(error))
+      const errorCode = sanitizeErrorCode(error)
+      if (errorCode === 'OPENCLAW_COMMAND_OUTPUT_LIMIT') this.suppressedSources.add(source)
+      this.store.markCollectorFailure(source, errorCode)
     } finally {
       this.running.delete(source)
       this.releasePermit()
@@ -182,20 +214,7 @@ export class CollectorManager {
   }
 
   private async collectStatus() {
-    const status = await this.openclaw.status()
-    const gateway = status.gateway
-    const gatewayRecord = gateway && typeof gateway === 'object' && !Array.isArray(gateway)
-      ? gateway as Record<string, unknown>
-      : {}
-    const gatewayStatus = gatewayRecord.status === 'healthy'
-      ? 'healthy'
-      : gatewayRecord.status === 'degraded'
-        ? 'degraded'
-        : 'unknown'
-    insertSystemSample(this.db, {
-      status: gatewayStatus,
-      version: typeof status.version === 'string' ? status.version : null,
-    })
+    insertSystemSample(this.db, statusSnapshot(await this.openclaw.status()))
     this.store.markCollectorSuccess('status', { coverageEnd: new Date().toISOString() })
   }
 
