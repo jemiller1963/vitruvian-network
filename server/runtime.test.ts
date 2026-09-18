@@ -11,6 +11,8 @@ const config = (fixtureIsolation: boolean): AppConfig => ({
   openclawBinary: 'must-not-run-openclaw',
   telemetryHmacSecret: null,
   fixtureIsolation,
+  collectorConcurrency: 7,
+  collectorStartupStaggerMs: 0,
   staticDir: '/tmp/dist',
   allowedOrigins: ['https://preview.example'],
 })

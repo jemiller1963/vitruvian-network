@@ -9,6 +9,8 @@ const schema = z.object({
   openclawBinary: z.string(),
   telemetryHmacSecret: z.string().min(32).nullable(),
   fixtureIsolation: z.enum(['true', 'false']).transform((value) => value === 'true'),
+  collectorConcurrency: z.coerce.number().int().min(1).max(7),
+  collectorStartupStaggerMs: z.coerce.number().int().min(0).max(60_000),
   staticDir: z.string(),
   allowedOrigins: z.array(z.string()),
 })
@@ -26,6 +28,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     openclawBinary: env.VITRUVIAN_OPENCLAW_BINARY ?? 'openclaw',
     telemetryHmacSecret: env.VITRUVIAN_TELEMETRY_HMAC_SECRET ?? null,
     fixtureIsolation: env.VITRUVIAN_FIXTURE_ISOLATION ?? 'false',
+    collectorConcurrency: env.VITRUVIAN_COLLECTOR_CONCURRENCY ?? '7',
+    collectorStartupStaggerMs: env.VITRUVIAN_COLLECTOR_STARTUP_STAGGER_MS ?? '0',
     staticDir: path.resolve(env.VITRUVIAN_STATIC_DIR ?? 'dist'),
     allowedOrigins: (
       env.VITRUVIAN_ALLOWED_ORIGINS ??

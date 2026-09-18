@@ -25,6 +25,8 @@ export class CollectorManager {
   private running = new Set<Source>()
   private stopped = false
   private normalizer: TelemetryNormalizer | null
+  private activeCollectors = 0
+  private permitWaiters: Array<(granted: boolean) => void> = []
 
   constructor(
     private config: AppConfig,
@@ -38,25 +40,61 @@ export class CollectorManager {
   }
 
   start() {
-    for (const source of Object.keys(intervals) as Source[]) {
-      void this.run(source)
+    ;(Object.keys(intervals) as Source[]).forEach((source, index) => {
+      const startupDelay = index * this.config.collectorStartupStaggerMs
+      if (startupDelay === 0) {
+        void this.run(source)
+      } else {
+        this.timers.push(setTimeout(() => void this.run(source), startupDelay))
+      }
+
       this.timers.push(setInterval(() => void this.run(source), intervals[source]))
-    }
+    })
   }
 
   stop() {
     this.stopped = true
-    for (const timer of this.timers) clearInterval(timer)
+    for (const timer of this.timers) clearTimeout(timer)
     this.timers = []
+
+    for (const waiter of this.permitWaiters.splice(0)) waiter(false)
   }
 
   async collectOnce(source: Source) {
     await this.run(source)
   }
 
+  private acquirePermit(): Promise<boolean> {
+    if (this.stopped) return Promise.resolve(false)
+
+    if (this.activeCollectors < this.config.collectorConcurrency) {
+      this.activeCollectors += 1
+      return Promise.resolve(true)
+    }
+
+    return new Promise((resolve) => this.permitWaiters.push(resolve))
+  }
+
+  private releasePermit() {
+    const next = this.permitWaiters.shift()
+    if (next) {
+      next(true)
+      return
+    }
+    this.activeCollectors = Math.max(0, this.activeCollectors - 1)
+  }
+
   private async run(source: Source) {
     if (this.stopped || this.running.has(source)) return
     this.running.add(source)
+
+    const granted = await this.acquirePermit()
+    if (!granted || this.stopped) {
+      if (granted) this.releasePermit()
+      this.running.delete(source)
+      return
+    }
+
     this.store.markCollectorAttempt(source)
     try {
       if (!this.normalizer && ['audit', 'tasks', 'flows', 'sessions'].includes(source)) {
@@ -75,6 +113,7 @@ export class CollectorManager {
       this.store.markCollectorFailure(source, sanitizeErrorCode(error))
     } finally {
       this.running.delete(source)
+      this.releasePermit()
     }
   }
 

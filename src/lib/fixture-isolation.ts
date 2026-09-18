@@ -21,6 +21,16 @@ export const fixtureDeferredSections = {
 
 export type FixtureDeferredTab = keyof typeof fixtureDeferredSections
 
+export const legacyScreensDisabled =
+  import.meta.env.VITE_VITRUVIAN_LEGACY_SCREENS_DISABLED === 'true'
+
 export function isFixtureDeferredTab(tab: DashboardTab): tab is FixtureDeferredTab {
   return tab in fixtureDeferredSections
+}
+
+export function shouldDeferLegacyTab(
+  tab: DashboardTab,
+  disabled = legacyScreensDisabled,
+): tab is FixtureDeferredTab {
+  return disabled && isFixtureDeferredTab(tab)
 }

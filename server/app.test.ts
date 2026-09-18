@@ -49,6 +49,8 @@ async function fixture(options: {
     openclawBinary: 'definitely-not-openclaw',
     telemetryHmacSecret: 'a-secure-test-secret-with-32-characters',
     fixtureIsolation: options.fixtureIsolation ?? false,
+    collectorConcurrency: 7,
+    collectorStartupStaggerMs: 0,
     staticDir,
     allowedOrigins: ['http://127.0.0.1:5173'],
   }

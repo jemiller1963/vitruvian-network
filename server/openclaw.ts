@@ -1,9 +1,6 @@
 import fs from 'node:fs/promises'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import type { AppConfig } from './config.js'
-
-const run = promisify(execFile)
+import { runJsonCommand } from './command.js'
 
 export interface ConfiguredAgent {
   id: string
@@ -98,11 +95,10 @@ export class OpenClawAdapter {
   }
 
   private async json(args: string[]): Promise<unknown> {
-    const result = await run(this.config.openclawBinary, args, {
-      timeout: 8_000,
-      maxBuffer: 2_000_000,
+    return runJsonCommand(this.config.openclawBinary, args, {
+      timeoutMs: 8_000,
+      maxBufferBytes: 2_000_000,
       env: { ...process.env, NO_COLOR: '1' },
     })
-    return JSON.parse(result.stdout) as unknown
   }
 }
