@@ -56,6 +56,7 @@ export class CollectorManager {
   private normalizer: TelemetryNormalizer | null
   private activeCollectors = 0
   private permitWaiters: Array<(granted: boolean) => void> = []
+  private drainWaiters: Array<() => void> = []
   private suppressedSources = new Set<Source>()
 
   constructor(
@@ -82,12 +83,15 @@ export class CollectorManager {
     })
   }
 
-  stop() {
+  async stop(): Promise<void> {
     this.stopped = true
     for (const timer of this.timers) clearTimeout(timer)
     this.timers = []
 
     for (const waiter of this.permitWaiters.splice(0)) waiter(false)
+    if (this.activeCollectors === 0) return
+
+    await new Promise<void>((resolve) => this.drainWaiters.push(resolve))
   }
 
   async collectOnce(source: Source) {
@@ -112,6 +116,9 @@ export class CollectorManager {
       return
     }
     this.activeCollectors = Math.max(0, this.activeCollectors - 1)
+    if (this.stopped && this.activeCollectors === 0) {
+      for (const waiter of this.drainWaiters.splice(0)) waiter()
+    }
   }
 
   private async run(source: Source) {
@@ -137,8 +144,10 @@ export class CollectorManager {
       if (source === 'sessions') await this.collectSessions()
       if (source === 'status') await this.collectStatus()
       if (source === 'system') await this.collectSystem()
-      const roster = await this.openclaw.configuredAgents()
-      this.store.refreshAgentState(roster)
+      if (!this.stopped) {
+        const roster = await this.openclaw.configuredAgents()
+        this.store.refreshAgentState(roster)
+      }
     } catch (error) {
       const errorCode = sanitizeErrorCode(error)
       if (errorCode === 'OPENCLAW_COMMAND_OUTPUT_LIMIT') this.suppressedSources.add(source)
@@ -176,7 +185,7 @@ export class CollectorManager {
       for (const event of normalized) if (event.occurredAt > newest) newest = event.occurredAt
       cursor = page.nextCursor ?? undefined
       pages += 1
-    } while (cursor && pages < 20)
+    } while (!this.stopped && cursor && pages < 20)
     this.store.markCollectorSuccess('audit', {
       schema,
       coverageStart: after,
