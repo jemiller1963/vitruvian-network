@@ -4,7 +4,7 @@ import type { Db } from './db.js'
 
 export interface CollectorLifecycle {
   start(): void
-  stop(): void
+  stop(): Promise<void>
 }
 
 export function startCollectorManager(
