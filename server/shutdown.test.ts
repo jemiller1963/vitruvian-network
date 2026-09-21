@@ -44,8 +44,11 @@ describe('process shutdown', () => {
     const configPath = path.join(directory, 'openclaw.json')
     const markerPath = path.join(directory, 'collector-active')
     const fakeOpenClawPath = path.join(directory, 'openclaw-fake')
+    const staticDir = path.join(directory, 'dist')
     const port = await availablePort()
 
+    await fs.mkdir(staticDir)
+    await fs.writeFile(path.join(staticDir, 'index.html'), '<!doctype html><title>test</title>')
     await fs.writeFile(configPath, JSON.stringify({ agents: { list: [] } }))
     await fs.writeFile(
       fakeOpenClawPath,
@@ -81,7 +84,7 @@ describe('process shutdown', () => {
           VITRUVIAN_FIXTURE_ISOLATION: 'false',
           VITRUVIAN_COLLECTOR_CONCURRENCY: '1',
           VITRUVIAN_COLLECTOR_STARTUP_STAGGER_MS: '60000',
-          VITRUVIAN_STATIC_DIR: path.join(directory, 'dist'),
+          VITRUVIAN_STATIC_DIR: staticDir,
           VITRUVIAN_ALLOWED_ORIGINS: 'http://127.0.0.1',
           VITRUVIAN_TEST_COLLECTOR_MARKER: markerPath,
         },
@@ -101,14 +104,15 @@ describe('process shutdown', () => {
       const shutdownStarted = Date.now()
       child.kill('SIGTERM')
 
-      const exit = await Promise.race([
-        new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
-          child.once('exit', (code, signal) => resolve({ code, signal }))
-        }),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('SHUTDOWN_TIMEOUT')), 4000)
-        }),
-      ])
+      const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+        (resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('SHUTDOWN_TIMEOUT')), 4000)
+          child.once('exit', (code, signal) => {
+            clearTimeout(timeout)
+            resolve({ code, signal })
+          })
+        },
+      )
       const shutdownDurationMs = Date.now() - shutdownStarted
 
       expect(exit).toEqual({ code: 0, signal: null })
