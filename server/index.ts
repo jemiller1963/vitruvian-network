@@ -12,7 +12,7 @@ let stopping = false
 const stop = async () => {
   if (stopping) return
   stopping = true
-  collectors?.stop()
+  await collectors?.stop()
   await app.close()
   db.close()
 }
