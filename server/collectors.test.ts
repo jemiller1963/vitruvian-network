@@ -25,6 +25,7 @@ const fakeStore = () => ({
   markCollectorSuccess: vi.fn(),
   refreshAgentState: vi.fn(),
   upsertTasks: vi.fn(),
+  ingest: vi.fn(),
 })
 
 describe('OpenClaw status compatibility', () => {
@@ -138,6 +139,127 @@ describe('collector resource controls', () => {
     expect(taskAudit).toHaveBeenCalledOnce()
   })
 
+
+  it('waits for an active collector to drain before stop resolves', async () => {
+    let releaseTasks!: () => void
+    let markTasksStarted!: () => void
+    const tasksStarted = new Promise<void>((resolve) => { markTasksStarted = resolve })
+    const tasksGate = new Promise<void>((resolve) => { releaseTasks = resolve })
+    const configuredAgents = vi.fn(async () => [])
+
+    const openclaw = {
+      tasks: vi.fn(async () => {
+        markTasksStarted()
+        await tasksGate
+        return []
+      }),
+      configuredAgents,
+    } as unknown as OpenClawAdapter
+
+    const manager = new CollectorManager(
+      config(),
+      {} as Db,
+      openclaw,
+      fakeStore() as unknown as TelemetryStore,
+    )
+
+    const collection = manager.collectOnce('tasks')
+    await tasksStarted
+
+    let stopped = false
+    const stopping = manager.stop().then(() => { stopped = true })
+    await Promise.resolve()
+
+    expect(stopped).toBe(false)
+
+    releaseTasks()
+    await Promise.all([collection, stopping])
+
+    expect(stopped).toBe(true)
+    expect(configuredAgents).not.toHaveBeenCalled()
+  })
+
+  it('waits for every active collector before stop resolves', async () => {
+    let releaseTasks!: () => void
+    let releaseTaskAudit!: () => void
+    let markTasksStarted!: () => void
+    let markTaskAuditStarted!: () => void
+    const tasksStarted = new Promise<void>((resolve) => { markTasksStarted = resolve })
+    const taskAuditStarted = new Promise<void>((resolve) => { markTaskAuditStarted = resolve })
+    const tasksGate = new Promise<void>((resolve) => { releaseTasks = resolve })
+    const taskAuditGate = new Promise<void>((resolve) => { releaseTaskAudit = resolve })
+
+    const openclaw = {
+      tasks: vi.fn(async () => {
+        markTasksStarted()
+        await tasksGate
+        return []
+      }),
+      taskAudit: vi.fn(async () => {
+        markTaskAuditStarted()
+        await taskAuditGate
+        return []
+      }),
+      configuredAgents: vi.fn(async () => []),
+    } as unknown as OpenClawAdapter
+
+    const manager = new CollectorManager(
+      { ...config(), collectorConcurrency: 2 },
+      {} as Db,
+      openclaw,
+      fakeStore() as unknown as TelemetryStore,
+    )
+
+    const tasks = manager.collectOnce('tasks')
+    const taskAudit = manager.collectOnce('task_audit')
+    await Promise.all([tasksStarted, taskAuditStarted])
+
+    let stopped = false
+    const stopping = manager.stop().then(() => { stopped = true })
+
+    releaseTasks()
+    await tasks
+    await Promise.resolve()
+    expect(stopped).toBe(false)
+
+    releaseTaskAudit()
+    await Promise.all([taskAudit, stopping])
+    expect(stopped).toBe(true)
+  })
+
+  it('does not start another audit page after stop is requested', async () => {
+    let releasePage!: () => void
+    let markPageStarted!: () => void
+    const pageStarted = new Promise<void>((resolve) => { markPageStarted = resolve })
+    const pageGate = new Promise<void>((resolve) => { releasePage = resolve })
+    const auditPage = vi.fn(async () => {
+      markPageStarted()
+      await pageGate
+      return { records: [], nextCursor: 'next-page', schemaVersion: 'test' }
+    })
+    const configuredAgents = vi.fn(async () => [])
+    const openclaw = { auditPage, configuredAgents } as unknown as OpenClawAdapter
+    const db = {
+      prepare: vi.fn(() => ({ get: vi.fn(() => undefined) })),
+    } as unknown as Db
+
+    const manager = new CollectorManager(
+      config(),
+      db,
+      openclaw,
+      fakeStore() as unknown as TelemetryStore,
+    )
+
+    const collection = manager.collectOnce('audit')
+    await pageStarted
+    const stopping = manager.stop()
+    releasePage()
+    await Promise.all([collection, stopping])
+
+    expect(auditPage).toHaveBeenCalledOnce()
+    expect(configuredAgents).not.toHaveBeenCalled()
+  })
+
   it('does not start queued collectors after stop', async () => {
     let releaseTasks!: () => void
     let markTasksStarted!: () => void
@@ -166,9 +288,9 @@ describe('collector resource controls', () => {
     await tasksStarted
     const second = manager.collectOnce('task_audit')
 
-    manager.stop()
+    const stopping = manager.stop()
     releaseTasks()
-    await Promise.all([first, second])
+    await Promise.all([first, second, stopping])
 
     expect(taskAudit).not.toHaveBeenCalled()
   })

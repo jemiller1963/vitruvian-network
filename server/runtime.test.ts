@@ -26,7 +26,7 @@ describe('collector runtime isolation', () => {
   })
 
   it('starts collectors in normal runtime mode', () => {
-    const lifecycle = { start: vi.fn(), stop: vi.fn() }
+    const lifecycle = { start: vi.fn(), stop: vi.fn(async () => {}) }
     const create = vi.fn(() => lifecycle)
 
     expect(startCollectorManager(config(false), {} as Db, create)).toBe(lifecycle)
