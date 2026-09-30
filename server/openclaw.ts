@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import type { AppConfig } from './config.js'
-import { runJsonCommand } from './command.js'
+import { runFlowListCommand, runJsonCommand } from './command.js'
 
 export interface ConfiguredAgent {
   id: string
@@ -80,8 +80,21 @@ export class OpenClawAdapter {
   }
 
   async flows(): Promise<unknown[]> {
-    return arrayFrom(await this.json(['tasks', 'flow', 'list', '--json']), ['flows', 'items', 'data'])
-  }
+  return runFlowListCommand(
+    this.config.openclawBinary,
+    ['tasks', 'flow', 'list', '--json'],
+    {
+      timeoutMs: 8_000,
+      maxInputBytes: 256 * 1024 * 1024,
+      maxStderrBytes: 256 * 1024,
+      maxEnvelopeBytes: 256 * 1024,
+      maxFlowBytes: 1024 * 1024,
+      maxFlows: 50_000,
+      maxProjectedBytes: 16 * 1024 * 1024,
+      env: { ...process.env, NO_COLOR: '1' },
+    },
+  )
+}
 
   async taskAudit(): Promise<unknown[]> {
     return arrayFrom(await this.json(['tasks', 'audit', '--json']), ['findings', 'items', 'data'])
