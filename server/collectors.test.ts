@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CollectorManager, statusSnapshot } from './collectors.js'
+import { CollectorManager, collectorIntervals, statusSnapshot } from './collectors.js'
 import type { AppConfig } from './config.js'
 import type { Db } from './db.js'
 import type { OpenClawAdapter } from './openclaw.js'
@@ -51,6 +51,21 @@ describe('OpenClaw status compatibility', () => {
     })).toEqual({ status: 'degraded', version: '2026.7.1-2' })
 
     expect(statusSnapshot({ gateway: {} })).toEqual({ status: 'unknown', version: null })
+  })
+})
+
+describe('collector scheduling', () => {
+  it('uses the E4-B polling intervals and does not schedule task_audit', () => {
+    expect(collectorIntervals).toEqual({
+      audit: 20_000,
+      tasks: 30_000,
+      flows: 120_000,
+      sessions: 120_000,
+      status: 60_000,
+      system: 30_000,
+    })
+
+    expect('task_audit' in collectorIntervals).toBe(false)
   })
 })
 

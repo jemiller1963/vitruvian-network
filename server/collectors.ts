@@ -9,14 +9,14 @@ import {
 } from './telemetry.js'
 
 type Source = 'audit' | 'tasks' | 'flows' | 'task_audit' | 'sessions' | 'status' | 'system'
+type ScheduledSource = Exclude<Source, 'task_audit'>
 
-const intervals: Record<Source, number> = {
-  audit: 10_000,
-  tasks: 15_000,
-  flows: 30_000,
-  task_audit: 60_000,
-  sessions: 60_000,
-  status: 30_000,
+export const collectorIntervals: Record<ScheduledSource, number> = {
+  audit: 20_000,
+  tasks: 30_000,
+  flows: 120_000,
+  sessions: 120_000,
+  status: 60_000,
   system: 30_000,
 }
 
@@ -71,7 +71,7 @@ export class CollectorManager {
   }
 
   start() {
-    ;(Object.keys(intervals) as Source[]).forEach((source, index) => {
+    ;(Object.keys(collectorIntervals) as ScheduledSource[]).forEach((source, index) => {
       const startupDelay = index * this.config.collectorStartupStaggerMs
       if (startupDelay === 0) {
         void this.run(source)
@@ -79,7 +79,7 @@ export class CollectorManager {
         this.timers.push(setTimeout(() => void this.run(source), startupDelay))
       }
 
-      this.timers.push(setInterval(() => void this.run(source), intervals[source]))
+      this.timers.push(setInterval(() => void this.run(source), collectorIntervals[source]))
     })
   }
 
