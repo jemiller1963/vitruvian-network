@@ -611,7 +611,11 @@ export class TelemetryStore {
       FROM collector_state ORDER BY source
     `).all() as Array<Record<string, unknown>>).map((row): CollectorHealth => ({
       source: String(row.source),
-      state: this.coverage(String(row.source), sourceFreshSeconds(String(row.source)), 120),
+      state: this.coverage(
+        String(row.source),
+        sourceFreshSeconds(String(row.source)),
+        sourceUnavailableSeconds(String(row.source)),
+      ),
       lastAttemptAt: text(row.lastAttemptAt),
       lastSuccessAt: text(row.lastSuccessAt),
       coverageStart: text(row.coverageStart),
@@ -747,7 +751,13 @@ function sourceFreshSeconds(source: string): number {
   if (source === 'audit') return 30
   if (source === 'tasks') return 45
   if (source === 'sessions') return 120
+  if (source === 'flows') return 150
   return 60
+}
+
+function sourceUnavailableSeconds(source: string): number {
+  if (source === 'flows') return 300
+  return 120
 }
 
 function encodeCursor(occurredAt: string, id: string): string {

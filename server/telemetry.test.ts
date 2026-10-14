@@ -125,4 +125,28 @@ describe('telemetry normalization and storage', () => {
     expect(store.telemetryHealth().backfillComplete).toBe(false)
     db.close()
   })
+
+  it('uses extended freshness windows for the 120-second flows collector', () => {
+    const { db, store } = fixture()
+    store.markCollectorSuccess('flows')
+
+    const flowState = () =>
+      store.telemetryHealth().collectors.find((collector) => collector.source === 'flows')?.state
+
+    expect(flowState()).toBe('ready')
+
+    db.prepare(
+      'UPDATE collector_state SET last_success_at=? WHERE source=?',
+    ).run(new Date(Date.now() - 200_000).toISOString(), 'flows')
+
+    expect(flowState()).toBe('stale')
+
+    db.prepare(
+      'UPDATE collector_state SET last_success_at=? WHERE source=?',
+    ).run(new Date(Date.now() - 360_000).toISOString(), 'flows')
+
+    expect(flowState()).toBe('unavailable')
+
+    db.close()
+  })
 })
